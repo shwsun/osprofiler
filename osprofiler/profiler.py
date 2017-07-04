@@ -19,11 +19,14 @@ import functools
 import inspect
 import socket
 import threading
+import uuid
 
+import opentracing
 from oslo_utils import reflection
 from oslo_utils import uuidutils
 
 from osprofiler import notifier
+from osprofiler.tracers import base
 
 
 # NOTE(boris-42): Thread safe storage for profiler instances.
@@ -42,6 +45,20 @@ def _ensure_no_multiple_traced(traceable_attrs):
                              " previously traced attribute '%s' since"
                              " it has been traced %s times previously"
                              % (attr_name, traced_times))
+
+
+def shorten_uuid(uuid_id):
+    """Convert from uuid to 64 bit number for Jaeger"""
+    short_id = uuid.UUID(uuid_id).int & (1 << 64) - 1
+    return short_id
+
+
+def init_opentracing_tracer(*args, **kwargs):
+    notifier_object = notifier.get().__self__
+    tracer_string = kwargs.pop("tracer_string", None)
+    kwargs["project"] = notifier_object.project
+    kwargs["service"] = notifier_object.service
+    base.init_tracer(tracer_string, *args, **kwargs)
 
 
 def init(hmac_key, base_id=None, parent_id=None, connection_str=None,
@@ -340,6 +357,7 @@ class _Profiler(object):
         self._connection_str = connection_str
         self._project = project
         self._service = service
+        self.spans = collections.deque()
 
     def get_base_id(self):
         """Return base id of a trace.
@@ -357,6 +375,23 @@ class _Profiler(object):
         """Returns current trace element id."""
         return self._trace_stack[-1]
 
+    def start_opentracing_span(self):
+        import jaeger_client
+        span_ctx = jaeger_client.SpanContext(
+            trace_id=shorten_uuid(self.get_base_id()),  # Same with base_id
+            span_id=shorten_uuid(self.get_id()),        # Same with trace_id
+            parent_id=shorten_uuid(self.get_parent_id()),
+            flags=1,
+        )
+        # TODO(tovin07): call span.set_operation_name(operation_name)
+        # to change the operation name based on HTTP/DB or RPC call
+        span = jaeger_client.Span(
+            context=span_ctx,
+            tracer=opentracing.tracer,
+            operation_name=self._name[-1],
+        )
+        self.spans.append(span)
+
     def start(self, name, info=None):
         """Start new event.
 
@@ -370,6 +405,9 @@ class _Profiler(object):
         :param info: Dictionary with any useful information related to this
                      trace element. (sql request, rpc message or url...)
         """
+        # NOTE(tovin07): Initialize OpenTracing tracer here
+        # to ensure project and service has been set after notifier was created
+        init_opentracing_tracer(tracer_string="jaeger")
 
         info = info or {}
         info["host"] = self._host
@@ -378,6 +416,8 @@ class _Profiler(object):
         self._name.append(name)
         self._trace_stack.append(str(uuidutils.generate_uuid()))
         self._notify("%s-start" % name, info)
+
+        self.start_opentracing_span()
 
     def stop(self, info=None):
         """Finish latest event.
@@ -392,6 +432,9 @@ class _Profiler(object):
         info["service"] = self._service
         self._notify("%s-stop" % self._name.pop(), info)
         self._trace_stack.pop()
+
+        # Finish span
+        self.spans.pop().finish()
 
     def _notify(self, name, info):
         payload = {
