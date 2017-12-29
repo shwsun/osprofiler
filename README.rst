@@ -1,3 +1,13 @@
+================================
+Apply BU Framework to OSProfiler
+================================
+
+This is a forked and instrumented OSProfiler library. 
+
+* OSProfiler version: stable/pike
+* Maintain/Developer: Shuwen (Jethro) Sun
+
+
 ========================
 Team and repository tags
 ========================
