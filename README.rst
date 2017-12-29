@@ -7,6 +7,13 @@ This is a forked and instrumented OSProfiler library.
 * OSProfiler version: stable/pike
 * Maintain/Developer: Shuwen (Jethro) Sun
 
+----------------
+Working features
+----------------
+
+* Apply OpenTracing to OpenStack trace points.
+* Interval Tree Clocks (possibly)
+
 
 ========================
 Team and repository tags
