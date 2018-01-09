@@ -1,3 +1,23 @@
+==================================
+OSProfiler -- BU framework version
+==================================
+
+This is the OSProfiler adapted BU tracing framework.
+
+This branch is a direct fork of ``stable/pike``. Major changes include:
+
+* OpenTracing (Jaeger Tracing) is enabled and enforced in this version.
+* Metadata propagation is done in the format of OpenTracing span context.
+
+  :RPC interactions: https://github.com/shwsun/nova/blob/master/nova/rpc.py#L144
+  :REST interactions: https://github.com/shwsun/novaclient/blob/stable/ocata/novaclient/client.py#L64
+* Tracers are Jaeger tracing tracers.  
+* Forking and joining -- OpenTracing doesn't handle it so it must be handled by us
+* In local machines threading (span context is stored in local thread storage, is it handled if threading is happened locally?)
+
+
+.. Change things from this point on
+
 ========================
 Team and repository tags
 ========================
