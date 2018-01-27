@@ -1,4 +1,6 @@
+# Copyright 2017-2018 Massachusetts Open Cloud.
 # Copyright 2014 Mirantis Inc.
+#
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -20,11 +22,8 @@ import inspect
 import socket
 import threading
 
-from oslo_utils import reflection
-from oslo_utils import uuidutils
-
+from oslo_utils import reflection, uuidutils
 from osprofiler import notifier
-
 
 # NOTE(boris-42): Thread safe storage for profiler instances.
 __local_ctx = threading.local()
