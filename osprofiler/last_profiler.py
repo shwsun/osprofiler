@@ -19,38 +19,14 @@ import collections
 import datetime
 import functools
 import inspect
-import logging
 import socket
-#import sys
 import threading
-
-#import opentracing
-from jaeger_client import Config
 
 from oslo_utils import reflection, uuidutils
 from osprofiler import notifier
 
 # NOTE(boris-42): Thread safe storage for profiler instances.
 __local_ctx = threading.local()
-
-
-def init_tracer(service):
-    logging.getLogger('').handlers = []
-    logging.basicConfig(format='%(message)s', level=logging.DEBUG)
-
-    config = Config(
-        config={
-            'sampler': {
-                'type': 'const',
-                'param': 1,
-            },
-            'logging': True,
-        },
-        service_name=service,
-    )
-
-    # this call also sets opentracing.tracer
-    return config.initialize_tracer()
 
 
 def _clean():
@@ -66,7 +42,7 @@ def _ensure_no_multiple_traced(traceable_attrs):
                              " it has been traced %s times previously"
                              % (attr_name, traced_times))
 
-# NOTE(jethros):
+
 def init(hmac_key, base_id=None, parent_id=None, connection_str=None,
          project=None, service=None):
     """Init profiler instance for current thread.
@@ -89,8 +65,8 @@ def init(hmac_key, base_id=None, parent_id=None, connection_str=None,
                                      project=project, service=service)
     return __local_ctx.profiler
 
-# XXX(jethros): OSProfiler use get() to determine if tracing is turned on, for
-# our framework we will always initialize a tracer
+# XXX(jethros): OSProfiler use get() to determine if tracing is turned on, what 
+# does OpenTracing (Jaeger) use and what should I do?
 def get():
     """Get profiler instance.
 
@@ -118,8 +94,8 @@ def stop(info=None):
         profiler.stop(info=info)
 
 # XXX(jethros): Trace decorator, need to implement another version based on our
-# framework, see dec_hello
-def trace_prev(name, info=None, hide_args=False, allow_multiple_trace=True):
+# framework, more importantly
+def trace(name, info=None, hide_args=False, allow_multiple_trace=True):
     """Trace decorator for functions.
 
     Very useful if you would like to add trace point on existing function:
@@ -143,7 +119,6 @@ def trace_prev(name, info=None, hide_args=False, allow_multiple_trace=True):
         info = {}
     else:
         info = info.copy()
-
     info["function"] = {}
 
     def decorator(f):
@@ -182,76 +157,9 @@ def trace_prev(name, info=None, hide_args=False, allow_multiple_trace=True):
 
     return decorator
 
-class Trace(object):
 
-    def __init__(self, name, info=None):
-        self._name = name
-        self._info = info
-
-    def __enter__(self):
-        start(self._name, info=self._info)
-
-    def __exit__(self, etype, value, traceback):
-        if etype:
-            info = {"etype": reflection.get_class_name(etype)}
-            stop(info=info)
-        else:
-            stop()
-
-
-def trace(name, info=None, hide_args=True, allow_multiple_trace=True):
-    """ Trace decorator for bu framework 
-    """
-    if not info:
-        info = {}
-    else:
-        info = info.copy()
-
-    info["function"] = {}
-
-    def decorator(f):
-        trace_times = getattr(f, "__traced__", 0)
-        if not allow_multiple_trace and trace_times:
-            raise ValueError("Function '%s' has already"
-                             " been traced %s times" % (f, trace_times))
-
-        try:
-            f.__traced__ = trace_times + 1
-        except AttributeError:
-            # Tries to work around the following:
-            #
-            # AttributeError: 'instancemethod' object has no
-            # attribute '__traced__'
-            try:
-                f.im_func.__traced__ = trace_times + 1
-            except AttributeError:  # nosec
-                pass
-
-        @functools.wraps(f)
-        def wrapper(*args, **kwargs):
-            if "name" not in info["function"]:
-                # Get this once (as it should **not** be changing in
-                # subsequent calls).
-                info["function"]["name"] = reflection.get_callable_name(f)
-
-            if not hide_args:
-                info["function"]["args"] = str(args)
-                info["function"]["kwargs"] = str(kwargs)
-
-            #with Trace(name, info=info):
-            #    return f(*args, **kwargs)
-
-            tracer = init_tracer(name+info)
-            with tracer.start_span('xxx') as span:
-                return f(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-
-# XXX(jethros): Will be deprecated. 
+# XXX(jethros): Will be deprecated. Is it possible to log function name etc.
+# using this method?
 def trace_cls(name, info=None, hide_args=False, trace_private=False,
               allow_multiple_trace=True, trace_class_methods=False,
               trace_static_methods=False): 
@@ -318,7 +226,6 @@ def trace_cls(name, info=None, hide_args=False, trace_private=False,
                 if attr_name in cls_dict:
                     wrapped_obj = cls_dict[attr_name]
                     break
-
             should_wrap, wrapper = trace_checker(attr_name, wrapped_obj)
             if not should_wrap:
                 continue
@@ -329,18 +236,17 @@ def trace_cls(name, info=None, hide_args=False, trace_private=False,
             # halfway trace this class).
             _ensure_no_multiple_traced(traceable_attrs)
         for i, (attr_name, attr) in enumerate(traceable_attrs):
-            # NOTE: actual function call
             wrapped_method = trace(name, info=info, hide_args=hide_args)(attr)
             wrapper = traceable_wrappers[i]
             if wrapper is not None:
                 wrapped_method = wrapper(wrapped_method)
-
             setattr(cls, attr_name, wrapped_method)
         return cls
 
     return decorator
 
 
+# XXX(jethros): not used dead code?
 class TracedMeta(type):
     """Metaclass to comfortably trace all children of a specific class.
 
@@ -393,7 +299,9 @@ class TracedMeta(type):
             setattr(cls, attr_name, trace(**trace_args)(getattr(cls,
                                                                 attr_name)))
 
-class Trace_prev(object):
+
+# XXX(jethros): Same function in Jaeger tracing?
+class Trace(object):
 
     def __init__(self, name, info=None):
         """With statement way to use profiler start()/stop().
@@ -424,9 +332,6 @@ class Trace_prev(object):
             stop()
 
 
-
-
-# NOTE(jethros): Need to be implemented using span context
 class _Profiler(object):
     # NOTE(jethros): the thread-local profiler instance
 
@@ -435,7 +340,6 @@ class _Profiler(object):
         self.hmac_key = hmac_key
         if not base_id:
             base_id = str(uuidutils.generate_uuid())
-
         self._trace_stack = collections.deque([base_id, parent_id or base_id])
         self._name = collections.deque()
         self._host = socket.gethostname()
