@@ -42,3 +42,5 @@ cover
 
 # reno build
 releasenotes/build
+
+.ropeproject/
