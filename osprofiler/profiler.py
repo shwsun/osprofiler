@@ -35,6 +35,7 @@ __local_ctx = threading.local()
 
 
 def init_tracer(service):
+    # NOTE(jethros): I don't think the logging is working
     logging.getLogger('').handlers = []
     logging.basicConfig(format='%(message)s', level=logging.DEBUG)
 
@@ -112,6 +113,7 @@ def start(name, info=None):
     #     profiler.start(name, info=info)
     tracer = init_tracer(name + info)
     span = tracer.start_span('say-hello')
+    span.finish()
 
 
 # XXX(jethros): span.stop
@@ -120,7 +122,7 @@ def stop(info=None):
     # profiler = get()
     # if profiler:
     #     profiler.stop(info=info)
-    span.finish()
+    pass
 
 # XXX(jethros): Trace decorator, need to implement another version based on our
 # framework, see dec_hello
