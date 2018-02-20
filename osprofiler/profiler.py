@@ -39,12 +39,13 @@ def init_tracer(service):
     logging.basicConfig(format='%(message)s', level=logging.DEBUG)
 
     config = Config(
-        config={
+        config={  # usually read from some yaml config
             'sampler': {
                 'type': 'const',
                 'param': 1,
             },
             'logging': True,
+            'reporter_batch_size': 1,
         },
         service_name=service,
     )
@@ -106,20 +107,24 @@ def start(name, info=None):
     :param info: Dictionary with extra trace information. For example in wsgi
                   it can be url, in rpc - message or in db sql - request.
     """
-    profiler = get()
-    if profiler:
-        profiler.start(name, info=info)
+    # profiler = get()
+    # if profiler:
+    #     profiler.start(name, info=info)
+    tracer = init_tracer(name + info)
+    span = tracer.start_span('say-hello')
+
 
 # XXX(jethros): span.stop
 def stop(info=None):
     """Send new stop notification if profiler instance is presented."""
-    profiler = get()
-    if profiler:
-        profiler.stop(info=info)
+    # profiler = get()
+    # if profiler:
+    #     profiler.stop(info=info)
+    span.finish()
 
 # XXX(jethros): Trace decorator, need to implement another version based on our
 # framework, see dec_hello
-def trace_prev(name, info=None, hide_args=False, allow_multiple_trace=True):
+def trace(name, info=None, hide_args=False, allow_multiple_trace=True):
     """Trace decorator for functions.
 
     Very useful if you would like to add trace point on existing function:
@@ -199,8 +204,8 @@ class Trace(object):
             stop()
 
 
-def trace(name, info=None, hide_args=True, allow_multiple_trace=True):
-    """ Trace decorator for bu framework 
+def trace_notworking(name, info=None, hide_args=True, allow_multiple_trace=True):
+    """ Trace decorator for bu framework
     """
     if not info:
         info = {}
@@ -248,7 +253,6 @@ def trace(name, info=None, hide_args=True, allow_multiple_trace=True):
         return wrapper
 
     return decorator
-
 
 
 # XXX(jethros): Will be deprecated. 
