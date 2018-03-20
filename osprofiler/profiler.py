@@ -21,10 +21,8 @@ import functools
 import inspect
 import logging
 import socket
-#import sys
 import threading
 
-#import opentracing
 from jaeger_client import Config
 
 from oslo_utils import reflection, uuidutils
@@ -128,6 +126,7 @@ def stop(info=None):
 # framework, see dec_hello
 #def trace(name, info=None, hide_args=False, allow_multiple_trace=True):
 
+
 def trace_notworking(name,
                      info=None,
                      hide_args=True,
@@ -182,7 +181,6 @@ def trace_notworking(name,
     return decorator
 
 
-
 # NOTE(jethros): Need to be implemented using span context
 #class _Profiler(object):
-    # NOTE(jethros): the thread-local profiler instance
+# NOTE(jethros): the thread-local profiler instance
