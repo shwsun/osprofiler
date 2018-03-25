@@ -15,5 +15,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from tracers.osp import *
+
+
 # NOTE(boris-42): Thread safe storage for profiler instances.
 __local_ctx = threading.local()
