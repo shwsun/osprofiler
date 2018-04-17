@@ -15,6 +15,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+""" OpenTracing implementation tracers (use Jaeger tracing) for OpenStack.
+"""
+
 import opentracing
 from oslo_log import log
 
