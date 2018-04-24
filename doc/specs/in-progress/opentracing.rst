@@ -1,0 +1,9 @@
+
+osprofiler.profiler.jaeger_tracer
+osprofiler.profiler.jaeger_middleware
+
+osprofiler.profiler.jaeger_middleware.get_span_ctx
+osprofiler.profiler.jaeger_middleware.Tracer
+
+osprofiler.profiler.jaeger_middleware.Tracer.extract
+osprofiler.profiler.jaeger_middleware.Tracer.inject

@@ -25,6 +25,9 @@ import threading
 from oslo_utils import reflection, uuidutils
 from osprofiler import notifier
 
+# NOTE(boris-42): Thread safe storage for profiler instances.
+__local_ctx = threading.local()
+
 
 def _clean():
     __local_ctx.profiler = None
